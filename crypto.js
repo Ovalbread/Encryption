@@ -1,5 +1,8 @@
 const crypto = require('crypto');
 const NodeRSA = require('node-rsa');
+const MongoClient = require('mongodb').MongoClient;
+const dbConnection = require('./mongoConnection')
+const BlockchainModel = require('./blockchainModel');
 
 class Block {
   constructor(index, timestamp, data, previousHash = '') {
@@ -67,8 +70,38 @@ const encryptedText = encryptRsa.encrypt(JSON.stringify({ text: 'hello world' })
 
 console.log(encryptedText);
 
-blockchain.addBlock(new Block(1, new Date().toString(), { certificate: encryptedText }));
-blockchain.addBlock(new Block(2, new Date().toString(), { certificate: encryptedText }));
+async function getDataFromDatabase() {
+  const client = await MongoClient.connect("mongodb://127.0.0.1:27017");
+  const database = client.db('dbblock');
+  const collection = database.collection('student');
+  const cursor = collection.find({});
+  const documents = await cursor.toArray();
+  await client.close();
+  return documents;
+}
+async function addDataToBlockchain() {
+  const data = await getDataFromDatabase();
 
-console.log(JSON.stringify(blockchain, null, 2));
-console.log(`Is blockchain valid? ${blockchain.isChainValid()}`);
+  const blockchain = new Blockchain();
+
+  // Iterate over the documents in the data array and add each one to the blockchain
+  for (let i = 0; i < data.length; i++) {
+    const { timestamp, transcripts } = data[i];
+    const decryptedTranscripts = rsa.decrypt(transcripts, 'utf8');
+    blockchain.addBlock(new Block(i + 1, timestamp, { transcripts: decryptedTranscripts }));
+  }
+
+  console.log(JSON.stringify(blockchain, null, 2));
+  console.log(`Is blockchain valid? ${blockchain.isChainValid()}`);
+
+  // Save the blockchain data to a new collection using Mongoose
+  const blockchainData = blockchain.chain.map(block => ({
+    index: block.index,
+    timestamp: block.timestamp,
+    data: block.data,
+    previousHash: block.previousHash,
+    hash: block.hash,
+    nonce: block.nonce
+  }));
+  await BlockchainModel.create(blockchainData);
+}
