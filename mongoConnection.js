@@ -1,10 +1,6 @@
-const MongoClient = require('mongodb').MongoClient;
-const url = 'mongodb://localhost:27017';
-const client = new MongoClient(url);
-client.connect((err) => {
-  if (err) throw err;
-  console.log('Connected successfully to server');
-  const db = client.db('myblockchain');
-  // insert code here to interact with the database
-  client.close();
-});
+const mongoose=require("mongoose");
+const connection=mongoose.connect("mongodb://127.0.0.1:27017/").then(function(){
+    console.log("connection successful!");
+}).catch(function(e){
+    console.log(e);
+})
